@@ -1,17 +1,18 @@
 import { z } from "zod";
 
 // =============================================================================
-// ECharts Component Definitions (SVG Renderer)
-// Supports: LineChart, PieChart, BarChart
+// Recharts Component Definitions
+// Supports: LineChart, AreaChart, PieChart, BarChart, ScatterChart, RadarChart
+// Built with React and D3 for declarative, composable charting
 // =============================================================================
 
 /**
- * ECharts component definitions for json-render catalogs.
+ * Recharts component definitions for json-render catalogs.
  *
  * These can be used directly or extended with custom components.
- * All charts use SVG renderer for better quality and flexibility.
+ * All charts are rendered as declarative React components.
  */
-export const echartsComponentDefinitions = {
+export const rechartsComponentDefinitions = {
   // ==========================================================================
   // Line Chart
   // ==========================================================================
@@ -27,7 +28,7 @@ export const echartsComponentDefinitions = {
           color: z.string().optional(),
           smooth: z.boolean().optional(),
           areaStyle: z.boolean().optional(),
-          symbol: z.enum(["circle", "rect", "triangle", "diamond", "pin", "arrow", "none"]).optional(),
+          symbol: z.enum(["circle", "square", "triangle", "diamond", "none"]).optional(),
           symbolSize: z.number().optional(),
           lineStyle: z.object({
             width: z.number().optional(),
@@ -36,8 +37,14 @@ export const echartsComponentDefinitions = {
         })
       ),
       // Layout
-      width: z.union([z.number(), z.string()]).optional(),
-      height: z.union([z.number(), z.string()]).optional(),
+      margin: z.object({
+        top: z.number().optional(),
+        right: z.number().optional(),
+        left: z.number().optional(),
+        bottom: z.number().optional(),
+      }).optional(),
+      // Style
+      style: z.record(z.string(), z.any()).optional(),
       // Title
       title: z.string().optional(),
       titleSubtext: z.string().optional(),
@@ -51,17 +58,14 @@ export const echartsComponentDefinitions = {
       yAxisName: z.string().optional(),
       showXAxis: z.boolean().optional(),
       showYAxis: z.boolean().optional(),
-      showXAxisLine: z.boolean().optional(),
-      showYAxisLine: z.boolean().optional(),
-      // Grid
-      gridContainLabel: z.boolean().optional(),
+      showGrid: z.boolean().optional(),
       // Animation
       animation: z.boolean().optional(),
       animationDuration: z.number().optional(),
     }),
-    events: ["click", "legendselectchanged"],
+    events: ["click", "legendClick"],
     description:
-      "Line charts display data trends over time or categories. Supports area fills, stacking, smooth curves, and symbol customization. Multiple series can share the same coordinate system. Use smooth=true for curved lines, areaStyle=true for filled regions. Customize symbols, line styles, and item styles for visual distinction.",
+      "Line charts display data trends over time or categories using Recharts' ComposedChart with Line and Area components. Supports smooth monotone interpolation curves, customizable line styles (solid, dashed, dotted), and point markers (circle, square, triangle, diamond). Multiple series can share the same coordinate system for effective comparison. Use smooth=true for curved lines, areaStyle=true to fill the area beneath lines. Each series can have custom colors and line widths.",
     example: {
       xAxisData: ["Mon", "Tue", "Wed", "Thu", "Fri"],
       series: [
@@ -86,44 +90,37 @@ export const echartsComponentDefinitions = {
           color: z.string().optional(),
         })
       ),
-      // Pie type
-      pieType: z.enum(["pie", "rose"]).optional(),
-      radius: z.union([
-        z.number(),
-        z.string(),
-        z.tuple([z.union([z.number(), z.string()]), z.union([z.number(), z.string()])])
-      ]).optional(),
-      center: z.tuple([
-        z.union([z.number(), z.string()]),
-        z.union([z.number(), z.string()])
-      ]).optional(),
+      // Pie dimensions
+      innerRadius: z.union([z.number(), z.string()]).optional(),
+      outerRadius: z.union([z.number(), z.string()]).optional(),
+      cx: z.union([z.number(), z.string()]).optional(),
+      cy: z.union([z.number(), z.string()]).optional(),
       // Layout
-      width: z.union([z.number(), z.string()]).optional(),
-      height: z.union([z.number(), z.string()]).optional(),
+      margin: z.object({
+        top: z.number().optional(),
+        right: z.number().optional(),
+        left: z.number().optional(),
+        bottom: z.number().optional(),
+      }).optional(),
+      // Style
+      style: z.record(z.string(), z.any()).optional(),
       // Title
       title: z.string().optional(),
       titleSubtext: z.string().optional(),
       // Legend
       showLegend: z.boolean().optional(),
       legendPosition: z.enum(["top", "bottom", "left", "right"]).optional(),
-      legendOrient: z.enum(["horizontal", "vertical"]).optional(),
       // Tooltip
       showTooltip: z.boolean().optional(),
       // Label
       showLabel: z.boolean().optional(),
-      labelPosition: z.enum(["outside", "inside", "center"]).optional(),
-      labelFormatter: z.string().optional(),
       // Animation
       animation: z.boolean().optional(),
       animationDuration: z.number().optional(),
-      animationType: z.enum(["expansion", "scale"]).optional(),
-      // Others
-      selectedMode: z.enum(["single", "multiple"]).optional(),
-      selectedOffset: z.number().optional(),
     }),
-    events: ["click", "legendselectchanged"],
+    events: ["click", "legendClick"],
     description:
-      "Pie and donut charts showing data proportions and percentages. Use radius property with [inner, outer] to create donut charts. Supports Nightingale rose charts via pieType='rose' with 'radius' mode (central angle shows percentage, radius shows size) or 'area' mode (same angle, radius shows size). Labels can be positioned outside (connected via visual guide line), inside/inner (within sectors), or center. Enable selectedMode for interactive selection.",
+      "Pie and donut charts showing proportional data as circular sectors using Recharts' PieChart with Pie and Cell components. Ideal for displaying composition and part-to-whole relationships. Use innerRadius (e.g., '40%') to create donut charts where the center is hollow. Each slice can have a custom color via the Cell component. Supports labels, tooltips, and smooth animated transitions. Use cx/cy props to position the chart center (defaults to '50%').",
     example: {
       data: [
         { name: "Category A", value: 335 },
@@ -131,7 +128,8 @@ export const echartsComponentDefinitions = {
         { name: "Category C", value: 234 }
       ],
       title: "Distribution",
-      radius: ["40%", "70%"]
+      innerRadius: "40%",
+      outerRadius: "70%"
     }
   },
 
@@ -148,21 +146,24 @@ export const echartsComponentDefinitions = {
           name: z.string(),
           data: z.array(z.union([z.number(), z.null()])),
           color: z.string().optional(),
-          barWidth: z.union([z.number(), z.string()]).optional(),
-          barMaxWidth: z.union([z.number(), z.string()]).optional(),
-          barMinWidth: z.union([z.number(), z.string()]).optional(),
+          barSize: z.number().optional(),
+          maxBarSize: z.number().optional(),
           stack: z.string().optional(),
-          showBackground: z.boolean().optional(),
-          backgroundStyle: z.object({
-            color: z.string().optional(),
-          }).optional(),
+          background: z.boolean().optional(),
+          backgroundColor: z.string().optional(),
         })
       ),
       // Bar layout
       horizontal: z.boolean().optional(),
       // Layout
-      width: z.union([z.number(), z.string()]).optional(),
-      height: z.union([z.number(), z.string()]).optional(),
+      margin: z.object({
+        top: z.number().optional(),
+        right: z.number().optional(),
+        left: z.number().optional(),
+        bottom: z.number().optional(),
+      }).optional(),
+      // Style
+      style: z.record(z.string(), z.any()).optional(),
       // Title
       title: z.string().optional(),
       titleSubtext: z.string().optional(),
@@ -176,26 +177,14 @@ export const echartsComponentDefinitions = {
       yAxisName: z.string().optional(),
       showXAxis: z.boolean().optional(),
       showYAxis: z.boolean().optional(),
-      showXAxisLine: z.boolean().optional(),
-      showYAxisLine: z.boolean().optional(),
-      // Grid
-      gridContainLabel: z.boolean().optional(),
+      showGrid: z.boolean().optional(),
       // Animation
       animation: z.boolean().optional(),
       animationDuration: z.number().optional(),
-      animationEasing: z.enum([
-        "linear", "quadraticIn", "quadraticOut", "quadraticInOut",
-        "cubicIn", "cubicOut", "cubicInOut", "quarticIn", "quarticOut",
-        "quarticInOut", "quinticIn", "quinticOut", "quinticInOut",
-        "sinusoidalIn", "sinusoidalOut", "sinusoidalInOut", "exponentialIn",
-        "exponentialOut", "exponentialInOut", "circularIn", "circularOut",
-        "circularInOut", "elasticIn", "elasticOut", "elasticInOut",
-        "backIn", "backOut", "backInOut", "bounceIn", "bounceOut", "bounceInOut"
-      ]).optional(),
     }),
-    events: ["click", "legendselectchanged"],
+    events: ["click", "legendClick"],
     description:
-      "Bar charts featuring stacked series, background bars, and custom styling. Supports stacking multiple series with stack property, custom bar widths, rounded corners via itemStyle.borderRadius, and background bars with showBackground and backgroundStyle. Use horizontal=true for horizontal bars. Multiple series can share the same coordinate system for effective comparison across categories.",
+      "Bar charts displaying categorical data as rectangular bars using Recharts' BarChart with Bar components. Supports stacked bars via the stack prop (bars with the same stack value are stacked), horizontal layout via horizontal=true (uses layout='vertical' with swapped axis types), and custom bar sizes. Multiple series can share the same coordinate system for effective comparison. Use background=true to show a background bar behind each data bar with optional backgroundColor.",
     example: {
       xAxisData: ["Product A", "Product B", "Product C"],
       series: [
@@ -204,6 +193,183 @@ export const echartsComponentDefinitions = {
       ],
       title: "Sales Report",
       showTooltip: true
+    }
+  },
+
+  // ==========================================================================
+  // Area Chart
+  // ==========================================================================
+
+  AreaChart: {
+    props: z.object({
+      // Data
+      xAxisData: z.array(z.union([z.string(), z.number()])),
+      series: z.array(
+        z.object({
+          name: z.string(),
+          data: z.array(z.union([z.number(), z.null()])),
+          color: z.string().optional(),
+          smooth: z.boolean().optional(),
+          fillOpacity: z.number().optional(),
+          stackId: z.string().optional(),
+        })
+      ),
+      // Layout
+      margin: z.object({
+        top: z.number().optional(),
+        right: z.number().optional(),
+        left: z.number().optional(),
+        bottom: z.number().optional(),
+      }).optional(),
+      // Style
+      style: z.record(z.string(), z.any()).optional(),
+      // Title
+      title: z.string().optional(),
+      titleSubtext: z.string().optional(),
+      // Legend
+      showLegend: z.boolean().optional(),
+      legendPosition: z.enum(["top", "bottom", "left", "right"]).optional(),
+      // Tooltip
+      showTooltip: z.boolean().optional(),
+      // Axis
+      xAxisName: z.string().optional(),
+      yAxisName: z.string().optional(),
+      showXAxis: z.boolean().optional(),
+      showYAxis: z.boolean().optional(),
+      showGrid: z.boolean().optional(),
+      // Animation
+      animation: z.boolean().optional(),
+      animationDuration: z.number().optional(),
+    }),
+    events: ["click", "legendClick"],
+    description:
+      "Area charts display data as filled areas beneath lines, ideal for visualizing cumulative data over time. Supports stacked areas via stackId (areas with the same stackId are stacked), smooth curves via smooth=true, and custom fill opacity. Use fillOpacity (0-1) to control area transparency. Multiple series can share the same coordinate system for effective comparison of cumulative values.",
+    example: {
+      xAxisData: ["Jan", "Feb", "Mar", "Apr", "May"],
+      series: [
+        { name: "Revenue", data: [4000, 3000, 2000, 2780, 1890], fillOpacity: 0.6 },
+        { name: "Expenses", data: [2400, 1398, 9800, 3908, 4800], fillOpacity: 0.6 }
+      ],
+      title: "Financial Overview"
+    }
+  },
+
+  // ==========================================================================
+  // Scatter Chart
+  // ==========================================================================
+
+  ScatterChart: {
+    props: z.object({
+      // Data
+      series: z.array(
+        z.object({
+          name: z.string(),
+          data: z.array(
+            z.object({
+              x: z.number(),
+              y: z.number(),
+              z: z.number().optional(),
+            })
+          ),
+          color: z.string().optional(),
+        })
+      ),
+      // Layout
+      margin: z.object({
+        top: z.number().optional(),
+        right: z.number().optional(),
+        left: z.number().optional(),
+        bottom: z.number().optional(),
+      }).optional(),
+      // Style
+      style: z.record(z.string(), z.any()).optional(),
+      // Title
+      title: z.string().optional(),
+      titleSubtext: z.string().optional(),
+      // Legend
+      showLegend: z.boolean().optional(),
+      legendPosition: z.enum(["top", "bottom", "left", "right"]).optional(),
+      // Tooltip
+      showTooltip: z.boolean().optional(),
+      // Axis
+      xAxisName: z.string().optional(),
+      yAxisName: z.string().optional(),
+      showXAxis: z.boolean().optional(),
+      showYAxis: z.boolean().optional(),
+      showGrid: z.boolean().optional(),
+      // Animation
+      animation: z.boolean().optional(),
+      animationDuration: z.number().optional(),
+    }),
+    events: ["click", "legendClick"],
+    description:
+      "Scatter charts display data as individual points on a two-dimensional coordinate system. Ideal for showing relationships between two variables. Supports bubble charts via the z property (point size). Use x and y for coordinates, and optional z for bubble sizing. Multiple series can share the same coordinate system for comparing distributions.",
+    example: {
+      series: [
+        {
+          name: "Group A",
+          data: [
+            { x: 100, y: 200, z: 200 },
+            { x: 120, y: 100, z: 260 },
+            { x: 170, y: 300, z: 400 }
+          ]
+        }
+      ],
+      title: "Scatter Plot"
+    }
+  },
+
+  // ==========================================================================
+  // Radar Chart
+  // ==========================================================================
+
+  RadarChart: {
+    props: z.object({
+      // Data
+      data: z.array(z.record(z.string(), z.any())),
+      series: z.array(
+        z.object({
+          name: z.string(),
+          dataKey: z.string(),
+          color: z.string().optional(),
+          fillOpacity: z.number().optional(),
+        })
+      ),
+      // Layout
+      margin: z.object({
+        top: z.number().optional(),
+        right: z.number().optional(),
+        left: z.number().optional(),
+        bottom: z.number().optional(),
+      }).optional(),
+      // Style
+      style: z.record(z.string(), z.any()).optional(),
+      // Title
+      title: z.string().optional(),
+      titleSubtext: z.string().optional(),
+      // Legend
+      showLegend: z.boolean().optional(),
+      legendPosition: z.enum(["top", "bottom", "left", "right"]).optional(),
+      // Tooltip
+      showTooltip: z.boolean().optional(),
+      // Animation
+      animation: z.boolean().optional(),
+      animationDuration: z.number().optional(),
+    }),
+    events: ["click", "legendClick"],
+    description:
+      "Radar charts display multivariate data on a spider diagram using polar coordinates. Ideal for comparing multiple quantitative variables across different categories. Each series is represented as a polygon with fillOpacity controlling transparency. Use dataKey in series to specify which property from data array to display.",
+    example: {
+      data: [
+        { name: "Math", A: 120, B: 110 },
+        { name: "Chinese", A: 98, B: 130 },
+        { name: "English", A: 86, B: 130 }
+      ],
+      series: [
+        { name: "Student A", dataKey: "A", fillOpacity: 0.6 },
+        { name: "Student B", dataKey: "B", fillOpacity: 0.6 }
+      ],
+      title: "Student Performance"
     }
   },
 };
@@ -224,18 +390,18 @@ export type ComponentDefinition = {
 };
 
 /**
- * Infer the props type for an echarts component by name.
+ * Infer the props type for a recharts component by name.
  * Derives the TypeScript type directly from the Zod schema,
  * so component implementations stay in sync with catalog definitions.
  *
  * @example
  * ```ts
- * type LineChartProps = EChartsProps<"LineChart">;
+ * type LineChartProps = RechartsProps<"LineChart">;
  * // { xAxisData: (string | number)[]; series: {...}; ... }
  * ```
  */
-export type EChartsProps<K extends keyof typeof echartsComponentDefinitions> =
-  z.output<(typeof echartsComponentDefinitions)[K]["props"]>;
+export type RechartsProps<K extends keyof typeof rechartsComponentDefinitions> =
+  z.output<(typeof rechartsComponentDefinitions)[K]["props"]>;
 
 /**
  * Bindings configuration for state binding paths.

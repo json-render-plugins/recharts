@@ -11,8 +11,7 @@ export default defineConfig({
     "react-dom",
     "@json-render/core",
     "@json-render/react",
-    "antd",
-    "dayjs",
+    "recharts",
     "zod",
   ],
 });

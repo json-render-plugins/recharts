@@ -1,61 +1,129 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import echarts from "echarts";
-import type { EChartsProps } from "./catalog";
+import {
+  ComposedChart,
+  AreaChart as RechartsAreaChart,
+  BarChart as RechartsBarChart,
+  PieChart as RechartsPieChart,
+  ScatterChart as RechartsScatterChart,
+  RadarChart as RechartsRadarChart,
+  ResponsiveContainer,
+  Line,
+  Area,
+  Bar,
+  Pie,
+  Scatter,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Cell,
+  XAxis,
+  YAxis,
+  ZAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
+import type { RechartsProps } from "./catalog";
 import type { BaseComponentProps } from "@json-render/react";
 
 // =============================================================================
-// Helper Functions
+// Constants & Helpers
 // =============================================================================
 
-function getLegendPosition(position?: "top" | "bottom" | "left" | "right") {
+const DEFAULT_COLORS = [
+  "#8884d8",
+  "#82ca9d",
+  "#ffc658",
+  "#ff7300",
+  "#0088FE",
+  "#00C49F",
+  "#FFBB28",
+  "#FF8042",
+];
+
+function getColor(color: string | undefined, index: number): string {
+  return color ?? DEFAULT_COLORS[index % DEFAULT_COLORS.length] ?? "#8884d8";
+}
+
+function getStrokeDasharray(type?: "solid" | "dashed" | "dotted"): string | undefined {
+  if (type === "dashed") return "5 5";
+  if (type === "dotted") return "1 5";
+  return undefined;
+}
+
+function getDot(
+  symbol?: string,
+  symbolSize?: number
+): boolean | { r: number } {
+  if (symbol === "none") return false;
+  if (symbolSize !== undefined) return { r: symbolSize / 2 };
+  return true;
+}
+
+function getLegendProps(position?: "top" | "bottom" | "left" | "right") {
   switch (position) {
     case "top":
-      return { top: "top" };
+      return { verticalAlign: "top" as const, align: "center" as const };
     case "bottom":
-      return { bottom: "bottom" };
+      return { verticalAlign: "bottom" as const, align: "center" as const };
     case "left":
-      return { left: "left", orient: "vertical" as const };
+      return {
+        layout: "vertical" as const,
+        verticalAlign: "middle" as const,
+        align: "left" as const,
+      };
     case "right":
-      return { right: "right", orient: "vertical" as const };
+      return {
+        layout: "vertical" as const,
+        verticalAlign: "middle" as const,
+        align: "right" as const,
+      };
     default:
-      return { top: "top" };
+      return { verticalAlign: "top" as const, align: "center" as const };
   }
 }
 
-function parseSize(size: number | string | undefined): number | string {
-  if (typeof size === "number") {
-    return size;
-  }
-  return size ?? "auto";
+/** Convert xAxisData + series arrays into the recharts row-per-point format */
+function buildChartData(
+  xAxisData: (string | number)[],
+  series: { name: string; data: (number | null)[] }[]
+): Record<string, string | number | null>[] {
+  return xAxisData.map((x, i) => {
+    const point: Record<string, string | number | null> = { __x: x };
+    series.forEach((s) => {
+      point[s.name] = s.data[i] ?? null;
+    });
+    return point;
+  });
 }
 
 // =============================================================================
-// ECharts Component Implementations
+// Recharts Component Implementations
 // =============================================================================
 
 /**
- * ECharts component implementations for json-render.
+ * Recharts component implementations for json-render.
  *
  * Pass to `defineRegistry()` from `@json-render/react` to create a
- * component registry for rendering JSON specs with ECharts charts.
+ * component registry for rendering JSON specs with Recharts charts.
  *
  * @example
  * ```ts
  * import { defineRegistry } from "@json-render/react";
- * import { echartsComponents } from "@json-render/echarts";
+ * import { rechartsComponents } from "@json-render-plugins/recharts";
  *
  * const { registry } = defineRegistry(catalog, {
  *   components: {
- *     LineChart: echartsComponents.LineChart,
- *     PieChart: echartsComponents.PieChart,
- *     BarChart: echartsComponents.BarChart,
+ *     LineChart: rechartsComponents.LineChart,
+ *     PieChart: rechartsComponents.PieChart,
+ *     BarChart: rechartsComponents.BarChart,
  *   },
  * });
  * ```
  */
-export const echartsComponents = {
+export const rechartsComponents = {
   // ==========================================================================
   // Line Chart
   // ==========================================================================
@@ -63,126 +131,90 @@ export const echartsComponents = {
   LineChart: ({
     props,
     emit,
-  }: BaseComponentProps<EChartsProps<"LineChart">>) => {
-    const chartRef = useRef<HTMLDivElement>(null);
-    const chartInstance = useRef<echarts.ECharts | null>(null);
+  }: BaseComponentProps<RechartsProps<"LineChart">>) => {
+    // 如果数据为空，不渲染
+    if (!props.xAxisData || props.xAxisData.length === 0 || !props.series || props.series.length === 0) {
+      return null;
+    }
 
-    useEffect(() => {
-      if (!chartRef.current) return;
+    const data = buildChartData(props.xAxisData, props.series);
+    const showGrid = props.showGrid !== false;
+    const hasArea = props.series.some((s) => s.areaStyle);
 
-      // Initialize chart with SVG renderer
-      if (!chartInstance.current) {
-        chartInstance.current = echarts.init(chartRef.current, undefined, {
-          renderer: "svg",
-        });
-      }
-
-      const chart = chartInstance.current;
-
-      // Build series configuration
-      const seriesData = props.series.map((s) => ({
-        name: s.name,
-        type: "line" as const,
-        data: s.data,
-        smooth: s.smooth ?? false,
-        itemStyle: s.color ? { color: s.color } : undefined,
-        areaStyle: s.areaStyle ? {} : undefined,
-        symbol: s.symbol ?? "circle",
-        symbolSize: s.symbolSize ?? 4,
-        lineStyle: s.lineStyle
-          ? {
-              width: s.lineStyle.width,
-              type: s.lineStyle.type,
-            }
-          : undefined,
-      }));
-
-      // Build option
-      const option: echarts.EChartsOption = {
-        title: props.title
-          ? {
-              text: props.title,
-              subtext: props.titleSubtext,
-              left: "center",
-            }
-          : undefined,
-        tooltip: props.showTooltip !== false
-          ? {
-              trigger: "axis",
-            }
-          : undefined,
-        legend:
-          props.showLegend !== false && seriesData.length > 1
-            ? {
-                ...getLegendPosition(props.legendPosition),
-                data: seriesData.map((s) => s.name),
-              }
-            : undefined,
-        grid: {
-          left: "3%",
-          right: "4%",
-          bottom: "3%",
-          containLabel: props.gridContainLabel !== false,
-        },
-        xAxis: {
-          type: "category",
-          boundaryGap: false,
-          data: props.xAxisData,
-          name: props.xAxisName,
-          show: props.showXAxis !== false,
-          axisLine: {
-            show: props.showXAxisLine !== false,
-          },
-        },
-        yAxis: {
-          type: "value",
-          name: props.yAxisName,
-          show: props.showYAxis !== false,
-          axisLine: {
-            show: props.showYAxisLine !== false,
-          },
-        },
-        series: seriesData,
-        animation: props.animation !== false,
-        animationDuration: props.animationDuration ?? 1000,
-      };
-
-      chart.setOption(option, true);
-
-      // Handle resize
-      const handleResize = () => chart.resize();
-      window.addEventListener("resize", handleResize);
-
-      // Event handlers
-      chart.on("click", () => {
-        emit("click");
-      });
-
-      chart.on("legendselectchanged", () => {
-        emit("legendselectchanged");
-      });
-
-      return () => {
-        window.removeEventListener("resize", handleResize);
-      };
-    }, [props, emit]);
-
-    // Cleanup on unmount
-    useEffect(() => {
-      return () => {
-        chartInstance.current?.dispose();
-        chartInstance.current = null;
-      };
-    }, []);
+    const legendProps = getLegendProps(props.legendPosition);
 
     return (
-      <div
-        ref={chartRef}
-        style={{
-          width: parseSize(props.width ?? "100%"),
-          height: parseSize(props.height ?? 400),
-        }}
-      />
+      <ResponsiveContainer width="100%" aspect={1.618}>
+        <ComposedChart
+          data={data}
+          margin={props.margin}
+          onClick={() => emit("click")}
+        >
+            {showGrid && <CartesianGrid strokeDasharray="3 3" />}
+            {props.showXAxis !== false && (
+              <XAxis
+                dataKey="__x"
+                label={
+                  props.xAxisName
+                    ? { value: props.xAxisName, position: "insideBottom", offset: -5 }
+                    : undefined
+                }
+              />
+            )}
+            {props.showYAxis !== false && (
+              <YAxis
+                label={
+                  props.yAxisName
+                    ? { value: props.yAxisName, angle: -90, position: "insideLeft" }
+                    : undefined
+                }
+              />
+            )}
+            {props.showTooltip !== false && <Tooltip />}
+            {props.showLegend !== false && props.series.length > 1 && (
+              <Legend {...legendProps} onClick={() => emit("legendClick")} />
+            )}
+            {props.series.map((s, i) => {
+              const color = getColor(s.color, i);
+              const lineType = s.smooth ? "monotone" : "linear";
+              const dot = getDot(s.symbol, s.symbolSize);
+              const strokeDasharray = getStrokeDasharray(s.lineStyle?.type);
+              const strokeWidth = s.lineStyle?.width ?? 2;
+
+              if (s.areaStyle) {
+                return (
+                  <Area
+                    key={s.name}
+                    type={lineType}
+                    dataKey={s.name}
+                    stroke={color}
+                    fill={color}
+                    fillOpacity={0.2}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={strokeDasharray}
+                    dot={dot}
+                    isAnimationActive={props.animation !== false}
+                    animationDuration={props.animationDuration ?? 1000}
+                  />
+                );
+              }
+
+              return (
+                <Line
+                  key={s.name}
+                  type={lineType}
+                  dataKey={s.name}
+                  stroke={color}
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={strokeDasharray}
+                  dot={dot}
+                  isAnimationActive={props.animation !== false}
+                  animationDuration={props.animationDuration ?? 1000}
+                />
+              );
+            })}
+        </ComposedChart>
+      </ResponsiveContainer>
     );
   },
 
@@ -193,120 +225,45 @@ export const echartsComponents = {
   PieChart: ({
     props,
     emit,
-  }: BaseComponentProps<EChartsProps<"PieChart">>) => {
-    const chartRef = useRef<HTMLDivElement>(null);
-    const chartInstance = useRef<echarts.ECharts | null>(null);
+  }: BaseComponentProps<RechartsProps<"PieChart">>) => {
+    const legendProps = getLegendProps(props.legendPosition);
 
-    useEffect(() => {
-      if (!chartRef.current) return;
-
-      // Initialize chart with SVG renderer
-      if (!chartInstance.current) {
-        chartInstance.current = echarts.init(chartRef.current, undefined, {
-          renderer: "svg",
-        });
-      }
-
-      const chart = chartInstance.current;
-
-      // Build series data with colors
-      const seriesData = props.data.map((item) => ({
-        name: item.name,
-        value: item.value,
-        itemStyle: item.color ? { color: item.color } : undefined,
-      }));
-
-      // Parse radius
-      let radius: string | number | (string | number)[];
-      if (props.radius === undefined) {
-        radius = "50%";
-      } else if (Array.isArray(props.radius)) {
-        radius = props.radius;
-      } else {
-        radius = props.radius;
-      }
-
-      // Build option
-      const option: echarts.EChartsOption = {
-        title: props.title
-          ? {
-              text: props.title,
-              subtext: props.titleSubtext,
-              left: "center",
-            }
-          : undefined,
-        tooltip: props.showTooltip !== false
-          ? {
-              trigger: "item",
-              formatter: props.labelFormatter ?? "{a} <br/>{b}: {c} ({d}%)",
-            }
-          : undefined,
-        legend:
-          props.showLegend !== false
-            ? {
-                ...getLegendPosition(props.legendPosition),
-                orient: props.legendOrient ?? "horizontal",
-                data: seriesData.map((d) => d.name),
-              }
-            : undefined,
-        series: [
-          {
-            name: props.title ?? "Pie",
-            type: "pie",
-            radius: radius,
-            center: props.center ?? ["50%", "50%"],
-            data: seriesData,
-            roseType: props.pieType === "rose" ? "radius" : false,
-            label: {
-              show: props.showLabel !== false,
-              position: props.labelPosition ?? "outside",
-              formatter: props.labelFormatter ?? "{b}: {d}%",
-            },
-            selectedMode: props.selectedMode,
-            selectedOffset: props.selectedOffset ?? 10,
-            animation: props.animation !== false,
-            animationDuration: props.animationDuration ?? 1000,
-            animationType: props.animationType ?? "expansion",
-          },
-        ],
-      };
-
-      chart.setOption(option, true);
-
-      // Handle resize
-      const handleResize = () => chart.resize();
-      window.addEventListener("resize", handleResize);
-
-      // Event handlers
-      chart.on("click", () => {
-        emit("click");
-      });
-
-      chart.on("legendselectchanged", () => {
-        emit("legendselectchanged");
-      });
-
-      return () => {
-        window.removeEventListener("resize", handleResize);
-      };
-    }, [props, emit]);
-
-    // Cleanup on unmount
-    useEffect(() => {
-      return () => {
-        chartInstance.current?.dispose();
-        chartInstance.current = null;
-      };
-    }, []);
+    // 如果数据为空或没有数据项，不渲染
+    if (!props.data || props.data.length === 0) {
+      return null;
+    }
 
     return (
-      <div
-        ref={chartRef}
-        style={{
-          width: parseSize(props.width ?? "100%"),
-          height: parseSize(props.height ?? 400),
-        }}
-      />
+      <ResponsiveContainer width="100%" aspect={1.618}>
+        <RechartsPieChart
+          margin={props.margin}
+          onClick={() => emit("click")}
+        >
+            {props.showTooltip !== false && <Tooltip />}
+            {props.showLegend !== false && (
+              <Legend {...legendProps} onClick={() => emit("legendClick")} />
+            )}
+            <Pie
+              data={props.data}
+              dataKey="value"
+              nameKey="name"
+              cx={props.cx ?? "50%"}
+              cy={props.cy ?? "50%"}
+              innerRadius={props.innerRadius ?? 0}
+              outerRadius={props.outerRadius ?? "50%"}
+              label={props.showLabel !== false}
+              isAnimationActive={props.animation !== false}
+              animationDuration={props.animationDuration ?? 1000}
+            >
+              {props.data.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={getColor(entry.color, index)}
+                />
+              ))}
+            </Pie>
+          </RechartsPieChart>
+      </ResponsiveContainer>
     );
   },
 
@@ -317,129 +274,285 @@ export const echartsComponents = {
   BarChart: ({
     props,
     emit,
-  }: BaseComponentProps<EChartsProps<"BarChart">>) => {
-    const chartRef = useRef<HTMLDivElement>(null);
-    const chartInstance = useRef<echarts.ECharts | null>(null);
+  }: BaseComponentProps<RechartsProps<"BarChart">>) => {
+    // 如果数据为空，不渲染
+    if (!props.xAxisData || props.xAxisData.length === 0 || !props.series || props.series.length === 0) {
+      return null;
+    }
 
-    useEffect(() => {
-      if (!chartRef.current) return;
-
-      // Initialize chart with SVG renderer
-      if (!chartInstance.current) {
-        chartInstance.current = echarts.init(chartRef.current, undefined, {
-          renderer: "svg",
-        });
-      }
-
-      const chart = chartInstance.current;
-
-      // Build series configuration
-      const seriesData = props.series.map((s) => ({
-        name: s.name,
-        type: "bar" as const,
-        data: s.data,
-        itemStyle: s.color ? { color: s.color } : undefined,
-        barWidth: s.barWidth,
-        barMaxWidth: s.barMaxWidth,
-        barMinWidth: s.barMinWidth,
-        stack: s.stack,
-        showBackground: s.showBackground,
-        backgroundStyle: s.backgroundStyle,
-      }));
-
-      // Determine axis types based on horizontal flag
-      const isHorizontal = props.horizontal === true;
-
-      // Build option
-      const option: echarts.EChartsOption = {
-        title: props.title
-          ? {
-              text: props.title,
-              subtext: props.titleSubtext,
-              left: "center",
-            }
-          : undefined,
-        tooltip: props.showTooltip !== false
-          ? {
-              trigger: "axis",
-              axisPointer: {
-                type: "shadow",
-              },
-            }
-          : undefined,
-        legend:
-          props.showLegend !== false && seriesData.length > 1
-            ? {
-                ...getLegendPosition(props.legendPosition),
-                data: seriesData.map((s) => s.name),
-              }
-            : undefined,
-        grid: {
-          left: "3%",
-          right: "4%",
-          bottom: "3%",
-          containLabel: props.gridContainLabel !== false,
-        },
-        xAxis: {
-          type: isHorizontal ? "value" : "category",
-          data: isHorizontal ? undefined : props.xAxisData,
-          name: isHorizontal ? props.yAxisName : props.xAxisName,
-          show: props.showXAxis !== false,
-          axisLine: {
-            show: props.showXAxisLine !== false,
-          },
-        },
-        yAxis: {
-          type: isHorizontal ? "category" : "value",
-          data: isHorizontal ? props.xAxisData : undefined,
-          name: isHorizontal ? props.xAxisName : props.yAxisName,
-          show: props.showYAxis !== false,
-          axisLine: {
-            show: props.showYAxisLine !== false,
-          },
-        },
-        series: seriesData,
-        animation: props.animation !== false,
-        animationDuration: props.animationDuration ?? 1000,
-        animationEasing: props.animationEasing ?? "cubicOut",
-      };
-
-      chart.setOption(option, true);
-
-      // Handle resize
-      const handleResize = () => chart.resize();
-      window.addEventListener("resize", handleResize);
-
-      // Event handlers
-      chart.on("click", () => {
-        emit("click");
-      });
-
-      chart.on("legendselectchanged", () => {
-        emit("legendselectchanged");
-      });
-
-      return () => {
-        window.removeEventListener("resize", handleResize);
-      };
-    }, [props, emit]);
-
-    // Cleanup on unmount
-    useEffect(() => {
-      return () => {
-        chartInstance.current?.dispose();
-        chartInstance.current = null;
-      };
-    }, []);
+    const data = buildChartData(props.xAxisData, props.series);
+    const isHorizontal = props.horizontal === true;
+    const showGrid = props.showGrid !== false;
+    const legendProps = getLegendProps(props.legendPosition);
 
     return (
-      <div
-        ref={chartRef}
-        style={{
-          width: parseSize(props.width ?? "100%"),
-          height: parseSize(props.height ?? 400),
-        }}
-      />
+      <ResponsiveContainer width="100%" aspect={1.618}>
+        <RechartsBarChart
+          data={data}
+          margin={props.margin}
+          layout={isHorizontal ? "vertical" : "horizontal"}
+          onClick={() => emit("click")}
+        >
+            {showGrid && <CartesianGrid strokeDasharray="3 3" />}
+            {isHorizontal ? (
+              <>
+                <XAxis
+                  type="number"
+                  label={
+                    props.yAxisName
+                      ? { value: props.yAxisName, position: "insideBottom", offset: -5 }
+                      : undefined
+                  }
+                  hide={props.showXAxis === false}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="__x"
+                  label={
+                    props.xAxisName
+                      ? { value: props.xAxisName, angle: -90, position: "insideLeft" }
+                      : undefined
+                  }
+                  hide={props.showYAxis === false}
+                />
+              </>
+            ) : (
+              <>
+                <XAxis
+                  dataKey="__x"
+                  label={
+                    props.xAxisName
+                      ? { value: props.xAxisName, position: "insideBottom", offset: -5 }
+                      : undefined
+                  }
+                  hide={props.showXAxis === false}
+                />
+                <YAxis
+                  label={
+                    props.yAxisName
+                      ? { value: props.yAxisName, angle: -90, position: "insideLeft" }
+                      : undefined
+                  }
+                  hide={props.showYAxis === false}
+                />
+              </>
+            )}
+            {props.showTooltip !== false && <Tooltip />}
+            {props.showLegend !== false && props.series.length > 1 && (
+              <Legend {...legendProps} onClick={() => emit("legendClick")} />
+            )}
+            {props.series.map((s, i) => {
+              const color = getColor(s.color, i);
+              const background = s.background
+                ? { fill: s.backgroundColor ?? "#f5f5f5" }
+                : undefined;
+
+              return (
+                <Bar
+                  key={s.name}
+                  dataKey={s.name}
+                  fill={color}
+                  stackId={s.stack}
+                  barSize={s.barSize}
+                  maxBarSize={s.maxBarSize}
+                  background={background}
+                  isAnimationActive={props.animation !== false}
+                  animationDuration={props.animationDuration ?? 1000}
+                />
+              );
+            })}
+          </RechartsBarChart>
+      </ResponsiveContainer>
+    );
+  },
+
+  // ==========================================================================
+  // Area Chart
+  // ==========================================================================
+
+  AreaChart: ({
+    props,
+    emit,
+  }: BaseComponentProps<RechartsProps<"AreaChart">>) => {
+    // 如果数据为空，不渲染
+    if (!props.xAxisData || props.xAxisData.length === 0 || !props.series || props.series.length === 0) {
+      return null;
+    }
+
+    const data = buildChartData(props.xAxisData, props.series);
+    const showGrid = props.showGrid !== false;
+    const legendProps = getLegendProps(props.legendPosition);
+
+    return (
+      <ResponsiveContainer width="100%" aspect={1.618}>
+        <RechartsAreaChart
+          data={data}
+          margin={props.margin}
+          onClick={() => emit("click")}
+        >
+            {showGrid && <CartesianGrid strokeDasharray="3 3" />}
+            {props.showXAxis !== false && (
+              <XAxis
+                dataKey="__x"
+                label={
+                  props.xAxisName
+                    ? { value: props.xAxisName, position: "insideBottom", offset: -5 }
+                    : undefined
+                }
+              />
+            )}
+            {props.showYAxis !== false && (
+              <YAxis
+                label={
+                  props.yAxisName
+                    ? { value: props.yAxisName, angle: -90, position: "insideLeft" }
+                    : undefined
+                }
+              />
+            )}
+            {props.showTooltip !== false && <Tooltip />}
+            {props.showLegend !== false && props.series.length > 1 && (
+              <Legend {...legendProps} onClick={() => emit("legendClick")} />
+            )}
+            {props.series.map((s, i) => {
+              const color = getColor(s.color, i);
+              const lineType = s.smooth ? "monotone" : "linear";
+
+              return (
+                <Area
+                  key={s.name}
+                  type={lineType}
+                  dataKey={s.name}
+                  stroke={color}
+                  fill={color}
+                  fillOpacity={s.fillOpacity ?? 0.6}
+                  stackId={s.stackId}
+                  isAnimationActive={props.animation !== false}
+                  animationDuration={props.animationDuration ?? 1000}
+                />
+              );
+            })}
+          </RechartsAreaChart>
+      </ResponsiveContainer>
+    );
+  },
+
+  // ==========================================================================
+  // Scatter Chart
+  // ==========================================================================
+
+  ScatterChart: ({
+    props,
+    emit,
+  }: BaseComponentProps<RechartsProps<"ScatterChart">>) => {
+    const showGrid = props.showGrid !== false;
+    const legendProps = getLegendProps(props.legendPosition);
+
+    // 如果数据为空，不渲染
+    if (!props.series || props.series.length === 0) {
+      return null;
+    }
+
+    return (
+      <ResponsiveContainer width="100%" aspect={1.618}>
+        <RechartsScatterChart
+          margin={props.margin}
+          onClick={() => emit("click")}
+        >
+            {showGrid && <CartesianGrid strokeDasharray="3 3" />}
+            {props.showXAxis !== false && (
+              <XAxis
+                type="number"
+                dataKey="x"
+                name="x"
+                label={
+                  props.xAxisName
+                    ? { value: props.xAxisName, position: "insideBottom", offset: -5 }
+                    : undefined
+                }
+              />
+            )}
+            {props.showYAxis !== false && (
+              <YAxis
+                type="number"
+                dataKey="y"
+                name="y"
+                label={
+                  props.yAxisName
+                    ? { value: props.yAxisName, angle: -90, position: "insideLeft" }
+                    : undefined
+                }
+              />
+            )}
+            <ZAxis type="number" dataKey="z" range={[60, 400]} />
+            {props.showTooltip !== false && <Tooltip cursor={{ strokeDasharray: "3 3" }} />}
+            {props.showLegend !== false && (
+              <Legend {...legendProps} onClick={() => emit("legendClick")} />
+            )}
+            {props.series.map((s, i) => {
+              const color = getColor(s.color, i);
+              return (
+                <Scatter
+                  key={s.name}
+                  name={s.name}
+                  data={s.data}
+                  fill={color}
+                  isAnimationActive={props.animation !== false}
+                  animationDuration={props.animationDuration ?? 1000}
+                />
+              );
+            })}
+          </RechartsScatterChart>
+      </ResponsiveContainer>
+    );
+  },
+
+  // ==========================================================================
+  // Radar Chart
+  // ==========================================================================
+
+  RadarChart: ({
+    props,
+    emit,
+  }: BaseComponentProps<RechartsProps<"RadarChart">>) => {
+    const legendProps = getLegendProps(props.legendPosition);
+
+    // 如果数据为空，不渲染
+    if (!props.data || props.data.length === 0 || !props.series || props.series.length === 0) {
+      return null;
+    }
+
+    return (
+      <ResponsiveContainer width="100%" aspect={1.618}>
+        <RechartsRadarChart
+          data={props.data}
+          margin={props.margin}
+          onClick={() => emit("click")}
+        >
+            <PolarGrid />
+            <PolarAngleAxis dataKey="name" />
+            <PolarRadiusAxis />
+            {props.showTooltip !== false && <Tooltip />}
+            {props.showLegend !== false && (
+              <Legend {...legendProps} onClick={() => emit("legendClick")} />
+            )}
+            {props.series.map((s, i) => {
+              const color = getColor(s.color, i);
+              return (
+                <Radar
+                  key={s.name}
+                  name={s.name}
+                  dataKey={s.dataKey}
+                  stroke={color}
+                  fill={color}
+                  fillOpacity={s.fillOpacity ?? 0.6}
+                  isAnimationActive={props.animation !== false}
+                  animationDuration={props.animationDuration ?? 1000}
+                />
+              );
+            })}
+          </RechartsRadarChart>
+      </ResponsiveContainer>
     );
   },
 };

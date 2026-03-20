@@ -1,9 +1,9 @@
 export {
-  echartsComponentDefinitions,
-  type EChartsProps,
+  rechartsComponentDefinitions,
+  type RechartsProps,
   type ComponentDefinition,
   type BindingsConfig,
   type EmitFunction,
 } from "./catalog";
 
-export { echartsComponents } from "./components";
+export { rechartsComponents } from "./components";
