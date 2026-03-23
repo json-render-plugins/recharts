@@ -4,6 +4,10 @@ on:
   release:
     types: [created]
 
+permissions:
+  id-token: write  # Required for OIDC
+
+
 jobs:
   # Job 1: Install dependencies and build the project
   build:
@@ -16,6 +20,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'yarn'
 
       - name: Install dependencies (Clean Install)
         run: yarn install
@@ -33,7 +38,6 @@ jobs:
             dist/
             package.json
             README.md
-            CHANGELOG.md
             LICENSE
 
   # Job 2: Publish the package to npm without re-building
@@ -52,9 +56,8 @@ jobs:
         with:
           node-version: 22
           registry-url: https://npmjs.org
+          cache: 'yarn'
 
       # Publish using the token stored in GitHub Secrets
       - name: Publish to npm
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+        run: npm publish

@@ -93,7 +93,7 @@ function buildChartData(
   return xAxisData.map((x, i) => {
     const point: Record<string, string | number | null> = { __x: x };
     series.forEach((s) => {
-      point[s.name] = s.data[i] ?? null;
+      point[s.name] = s.data?.[i] ?? null;
     });
     return point;
   });

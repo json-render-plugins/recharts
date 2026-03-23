@@ -1,6 +1,6 @@
 {
   "name": "@json-render-plugins/recharts",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "description": "Recharts component library for @json-render/core. JSON becomes beautiful Recharts charts with React rendering.",
   "keywords": [
@@ -49,7 +49,8 @@
   ],
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
   },
   "scripts": {
     "build": "tsup",
