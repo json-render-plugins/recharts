@@ -57,10 +57,11 @@
     "check-types": "tsc --noEmit",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@json-render/core": "*",
+    "@json-render/react": "*"
+  },
   "devDependencies": {
-    "@json-render/core": "^0.14.1",
-    "@json-render/react": "^0.14.0",
     "@types/react": "^18.3.18",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -70,10 +71,8 @@
     "zod": "^4.3.6"
   },
   "peerDependencies": {
-    "@json-render/core": "^0.14.0",
-    "@json-render/react": "^0.14.0",
-    "react": "^18.0.0 || ^19.0.0",
-    "react-dom": "^18.0.0 || ^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "recharts": "^3.0.0",
     "zod": "^4.0.0"
   }

@@ -148,6 +148,7 @@ export const rechartsComponents = {
         <ComposedChart
           data={data}
           margin={props.margin}
+          style={props.style}
           onClick={() => emit("click")}
         >
             {showGrid && <CartesianGrid strokeDasharray="3 3" />}
@@ -237,6 +238,7 @@ export const rechartsComponents = {
       <ResponsiveContainer width="100%" aspect={1.618}>
         <RechartsPieChart
           margin={props.margin}
+          style={props.style}
           onClick={() => emit("click")}
         >
             {props.showTooltip !== false && <Tooltip />}
@@ -290,6 +292,7 @@ export const rechartsComponents = {
         <RechartsBarChart
           data={data}
           margin={props.margin}
+          style={props.style}
           layout={isHorizontal ? "vertical" : "horizontal"}
           onClick={() => emit("click")}
         >
@@ -388,6 +391,7 @@ export const rechartsComponents = {
         <RechartsAreaChart
           data={data}
           margin={props.margin}
+          style={props.style}
           onClick={() => emit("click")}
         >
             {showGrid && <CartesianGrid strokeDasharray="3 3" />}
@@ -455,10 +459,11 @@ export const rechartsComponents = {
 
     return (
       <ResponsiveContainer width="100%" aspect={1.618}>
-        <RechartsScatterChart
-          margin={props.margin}
-          onClick={() => emit("click")}
-        >
+          <RechartsScatterChart
+            margin={props.margin}
+            style={props.style}
+            onClick={() => emit("click")}
+          >
             {showGrid && <CartesianGrid strokeDasharray="3 3" />}
             {props.showXAxis !== false && (
               <XAxis
@@ -524,11 +529,12 @@ export const rechartsComponents = {
 
     return (
       <ResponsiveContainer width="100%" aspect={1.618}>
-        <RechartsRadarChart
-          data={props.data}
-          margin={props.margin}
-          onClick={() => emit("click")}
-        >
+          <RechartsRadarChart
+            data={props.data}
+            margin={props.margin}
+            style={props.style}
+            onClick={() => emit("click")}
+          >
             <PolarGrid />
             <PolarAngleAxis dataKey="name" />
             <PolarRadiusAxis />
