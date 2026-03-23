@@ -1,5 +1,11 @@
 # @json-render-plugins/recharts
 
+## 0.0.2
+
+### Bug Fixes
+
+- Fix potential crash when series `data` array is undefined or shorter than `xAxisData` by using optional chaining (`s.data?.[i]`)
+
 ## 0.0.1
 
 ### Initial Release
