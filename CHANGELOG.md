@@ -55,8 +55,3 @@
 - Multiple series overlay for comparison
 - Customizable fill opacity
 
-### Dependencies
-- recharts ^3.0.0
-- @json-render/core ^0.14.0
-- @json-render/react ^0.14.0
-- zod ^4.0.0

@@ -1,0 +1,60 @@
+name: Node.js Package
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  # Job 1: Install dependencies and build the project
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies (Clean Install)
+        run: yarn install
+
+      - name: Run build script
+        run: npm run build
+
+      # Upload build artifacts to share with the next job
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          # Adjust the path (e.g., dist/) based on your build configuration
+          path: |
+            dist/
+            package.json
+            README.md
+            CHANGELOG.md
+            LICENSE
+
+  # Job 2: Publish the package to npm without re-building
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      # Download the artifacts produced in the build job
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+
+      - name: Setup Node.js 22 for Registry
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npmjs.org
+
+      # Publish using the token stored in GitHub Secrets
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
